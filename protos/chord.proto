@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package chord;
+
+service Chord {
+  rpc FindSuccessor(FindSuccessorRequest) returns (FindSuccessorResponse);
+  rpc FindPredecessor(FindPredecessorRequest) returns (FindPredecessorResponse);
+  rpc SetSuccessor(SetSuccessorRequest) returns (SetSuccessorResponse);
+  rpc SetPredecessor(SetPredecessorRequest) returns (SetPredecessorResponse);
+  rpc Notify(NotifyRequest) returns (NotifyResponse);
+  rpc UpdateFingerTable(UpdateFingerTableRequest) returns (UpdateFingerTableResponse);
+  rpc FixFingers(FixFingersRequest) returns (FixFingersResponse);
+  rpc Stabilize(StabilizeRequest) returns (StabilizeResponse);
+  rpc GetInformation(GetInfoRequest) returns (GetInfoResponse);
+  rpc NodeHasInformation(NodeHasInformationRequest) returns (NodeHasInformationResponse);
+  rpc AddInformation(AddInfoRequest) returns (AddInfoResponse);
+  rpc RemoveInformation(RemoveInfoRequest) returns (RemoveInfoResponse);
+}
+
+message FindSuccessorRequest {
+  string target_id = 1;
+  string key = 2;
+}
+
+message FindSuccessorResponse {
+  string successor_id = 1;
+}
+
+message FindPredecessorRequest {
+  string target_id = 1;
+}
+
+message FindPredecessorResponse {
+  string predecessor_id = 1;
+}
+
+message SetSuccessorRequest {
+  string target_id = 1;
+  string new_successor_id = 2;
+}
+
+message SetSuccessorResponse {
+
+}
+
+message SetPredecessorRequest {
+  string target_id = 1;
+  string new_predecessor_id = 2;
+}
+
+message SetPredecessorResponse {
+
+}
+
+message NodeHasInformationRequest {
+  string id = 1;
+}
+
+message NodeHasInformationResponse {
+  string information = 2;
+}
+
+message NotifyRequest {
+  string target_id = 1;
+  string sender_id = 2;
+}
+
+message UpdateFingerTableRequest {
+  string target_id = 1;
+  string new_node_id = 2;
+  string index = 3;
+}
+
+message UpdateFingerTableResponse {
+
+}
+
+message NotifyResponse {
+
+}
+
+message GetInfoRequest {
+  string target_id = 1;
+  string key = 2;
+}
+
+message GetInfoResponse {
+  string information = 1;
+}
+
+message AddInfoRequest {
+  string info_key = 1;
+  string info = 2;
+}
+
+message AddInfoResponse {
+
+}
+
+message FixFingersRequest {
+
+}
+
+message FixFingersResponse {
+
+}
+
+message StabilizeRequest {
+
+}
+
+message StabilizeResponse {
+
+}
+
+message RemoveInfoRequest {
+  string target_id = 1;
+  string info_key = 2;
+}
+
+message RemoveInfoResponse {
+
+}
