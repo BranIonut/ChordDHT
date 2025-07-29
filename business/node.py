@@ -190,7 +190,6 @@ class Node:
             self.network.notify(self.predecessor, self.successor)
         if self.successor != self.node_id:
             self.network.notify(self.successor, self.predecessor)
-        exit(0)
 
     def fix_fingers(self):
         self.stats['finger_fixes'] += 1

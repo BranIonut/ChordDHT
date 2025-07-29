@@ -120,5 +120,12 @@ def main():
                 continue
             print(f'{nodes[node_id].find_predecessor(int(cmd.lower().split(" ")[1]))}')
 
+        elif cmd.lower().split(' ')[0] == 'leave':
+            if len(cmd.lower().split(' ')) != 1:
+                print("Invalid command. Correct format: leave")
+                continue
+            nodes[node_id].leave()
+            exit(0)
+
 if __name__ == "__main__":
     main()
