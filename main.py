@@ -59,6 +59,7 @@ def main():
             print('\t-> print - prints successor, predecessor and finger table of current node')
             print('\t-> stats - shows numbers of fixes, stabilization, searches of current node')
             print('\t-> successor [key] - finds and prints successor of given key')
+            print('\t-> predecessor [key] - finds and prints predecessor of given key')
             print('\t-> info [info_key] - searches and shows information about given key')
             print('\t-> create [info_key] [info_value] - creates information about given key, if not already exists')
             print('\t-> remove [info_key] [info_value] - removes information about given key, if exists')
@@ -104,12 +105,20 @@ def main():
             else:
                 print(f"Info was not removed...")
 
+        elif cmd.lower() == 'stats':
+            nodes[node_id].print_stats()
+
         elif cmd.lower().split(' ')[0] == 'successor':
             if len(cmd.lower().split(' ')) != 2:
                 print("Invalid command. Correct format: successor [key]")
                 continue
             print(f'{nodes[node_id].find_successor(int(cmd.lower().split(" ")[1]))}')
 
+        elif cmd.lower().split(' ')[0] == 'predecessor':
+            if len(cmd.lower().split(' ')) != 2:
+                print("Invalid command. Correct format: predecessor [key]")
+                continue
+            print(f'{nodes[node_id].find_predecessor(int(cmd.lower().split(" ")[1]))}')
 
 if __name__ == "__main__":
     main()
