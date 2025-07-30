@@ -1,6 +1,4 @@
 import unittest
-import grpc
-
 from business.node import Node
 from business.node_network_interface import NodeNetworkInterface
 
