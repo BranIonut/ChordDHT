@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: chord
+  namespace: chord-dht-namespace
+spec:
+  selector:
+    matchLabels:
+      app: chord
+  serviceName: chord-headless
+  replicas: 5
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      labels:
+        app: chord
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: chord-node
+          image: alexandru2004/chord_dht_repo:0.0.1-14
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 50050
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MAX_NODES
+              value: "5"
+          command: [ "python", "main.py" ]
+          args:
+            - "$(NODE_ID)"

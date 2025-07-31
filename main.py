@@ -5,6 +5,7 @@ import time
 from presentation.docker_network import DockerNetwork
 from presentation.chord_server import serve
 from business.node import Node
+from presentation.kubernetes_network import KubernetesNetwork
 
 ADDRESS_MAP = {
     i: f"localhost:{50050 + i}" for i in range(33)
@@ -19,7 +20,7 @@ def node_already_exists(nodes: list[Node], x: int) -> bool:
 
 
 def launch_node(node_id: int, m: int) -> Node:
-    client = DockerNetwork()
+    client = KubernetesNetwork()
     node = Node(node_id, m, client)
     client.set_local_node(node)
 

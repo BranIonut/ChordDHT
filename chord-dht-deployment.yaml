@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chord-node-1
+  namespace: chord-dht-namespace
+  labels:
+    app: chord-dht
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chord-dht
+      node-id: "1"
+  template:
+    metadata:
+      labels:
+        app: chord-dht
+        node-id: "1"
+    spec:
+      containers:
+      - name: chord-dht
+        image: alexandru2004/chord_dht_repo:0.0.1-14
+        imagePullPolicy: Always
+        env:
+          - name: NODE_ID
+            value: "1"
+      imagePullSecrets:
+        - name: regcred
+
+
+
