@@ -1,5 +1,8 @@
+import logging
+#from distutils.command.config import config
+
 import grpc
-import nmap
+from kubernetes import client, config
 from business.node import Node
 from business.node_network_interface import NodeNetworkInterface
 from presentation import chord_pb2
@@ -7,39 +10,104 @@ from presentation.chord_pb2_grpc import ChordStub
 
 
 class KubernetesNetwork(NodeNetworkInterface):
-    def __init__(self, namespace="chord-dht-namespace", headless_name="chord-headless"):
+    def __init__(self, namespace="chord-dht", headless_service="chord-headless", app_label="chord-node"):
         self.stubs = {}
         self.local_node = None
         self.namespace = namespace
-        self.headless_name = headless_name
+        self.headless_service = headless_service
+        self.app_label = app_label
+        self.k8s_client = None
+        self.port = 50050
+        self.address_map = {}
 
-    def _resolve_address(self, node_id: int) -> str:
-        return f"chord-node-{node_id}.{self.headless_name}.{self.namespace}.svc.cluster.local:50050"
+        self.init_k8s_client()
+
+    def init_k8s_client(self):
+        try:
+            config.load_incluster_config()
+        except config.ConfigException:
+            try:
+                config.load_kube_config()
+            except config.ConfigException:
+                logging.exception("Failed to load kubeconfig")
+                raise
+        self.k8s_client = client.CoreV1Api()
+
+    def _resolve_address(self, node_id: int, short: bool = True) -> str:
+        return f"chord-{node_id}.{self.headless_service}.{self.namespace}.svc.cluster.local:{self.port}"
 
     def _get_stub(self, node_id: int) -> ChordStub:
         if node_id not in self.stubs:
-            address = self._resolve_address(node_id)
-            channel = grpc.insecure_channel(address)
+            dns_address = self._resolve_address(node_id)
+            channel = grpc.insecure_channel(dns_address)
             self.stubs[node_id] = ChordStub(channel)
         return self.stubs[node_id]
 
     def set_local_node(self, node: Node):
         self.local_node = node
 
-    def discover_bootstrap(self, max_nodes=10) -> int | None:
-        print(f"[K8S DISCOVERY] Searching for bootstrap node...")
-        for i in range(max_nodes):
-            if i == self.local_node.node_id:
-                continue
-            try:
-                pred = self.get_predecessor(i)
-                if pred is not None:
-                    print(f"[K8S DISCOVERY] Found bootstrap: node {i}")
-                    return i
-            except Exception:
-                continue
-        print(f"[K8S DISCOVERY] No bootstrap found. This node will initialize the ring.")
-        return None
+    def discover_bootstrap(self):
+        try:
+            pods = self.k8s_client.list_namespaced_pod(
+                namespace=self.namespace,
+                label_selector=f"app={self.app_label}"
+            )
+
+            bootstrap_candidates = []
+            for pod in pods.items:
+                if pod.status.phase == 'Running' and pod.status.pod_ip and pod.metadata.name != f"chord-{self.local_node.node_id}":
+                    try:
+                        pod_name = pod.metadata.name
+                        if pod_name.startswith(f"chord-"):
+                            node_id = int(pod_name.split("-")[-1])
+                            bootstrap_candidates.append(node_id)
+                            logging.info(f"Discovered potential bootstrap node: {pod_name}")
+                    except (ValueError, IndexError):
+                        logging.warning(f"Could not parse node ID from pod name: {pod.metadata.name}")
+                        continue
+
+            for node_id in bootstrap_candidates:
+                try:
+                    result = self.get_predecessor(node_id)
+                    self.address_map[node_id] = self._resolve_address(node_id)
+                    logging.info(f"RESULT: {result}")
+                    logging.info(f"Discovered bootstrap node: {node_id}")
+                    return node_id
+                except grpc.RpcError as rpc_error:
+                    logging.debug(f"Node {node_id} not responsive: {rpc_error}")
+                    continue
+
+            logging.info("No responsive bootstrap nodes found. Starting as initial node.")
+            return None
+
+        except Exception as e:
+            logging.error(f"Error during bootstrap discovery: {e}")
+            return None
+
+    def discover_all_nodes(self) -> list[int]:
+        try:
+            pods = self.k8s_client.list_namespaced_pod(
+                namespace=self.namespace,
+                label_selector=f"app={self.app_label}"
+            )
+
+            node_ids = []
+
+            for pod in pods.items:
+                if pod.status.phase == 'Running' and pod.status.pod_ip:
+                    try:
+                        pod_name = pod.metadata.name
+                        if pod_name.startswith(f"chord-"):
+                            node_id = int(pod_name.split("-")[-1])
+                            node_ids.append(node_id)
+                    except (ValueError, IndexError):
+                        continue
+
+            return sorted(node_ids)
+
+        except Exception as e:
+            logging.error(f"Error during discover all nodes: {e}")
+            return []
 
     def find_successor(self, target_id: int, key: int) -> int | None:
         try:
@@ -128,3 +196,31 @@ class KubernetesNetwork(NodeNetworkInterface):
             stub.RemoveInformation(req, timeout=2)
         except grpc.RpcError:
             self.local_node.handle_dead_node(target_node_id)
+
+    def print_node_info(self, target_node_id: int):
+        try:
+            stub = self._get_stub(target_node_id)
+            req = chord_pb2.PrintNodeInfoRequest(target_id=str(target_node_id))
+            stub.PrintNodeInformation(req, timeout=2)
+        except grpc.RpcError:
+            if self.local_node:
+                self.local_node.handle_dead_node(target_node_id)
+
+    def print_stats(self, target_node_id: int):
+        try:
+            stub = self._get_stub(target_node_id)
+            req = chord_pb2.PrintNodeStatsRequest(target_id=str(target_node_id))
+            stub.PrintNodeStats(req, timeout=2)
+        except grpc.RpcError:
+            if self.local_node:
+                self.local_node.handle_dead_node(target_node_id)
+
+    def cleanup(self):
+        for stub in self.stubs.values():
+            try:
+                channel = stub._channel
+                if hasattr(channel, 'close'):
+                    channel.close()
+            except Exception as e:
+                logging.error(f"Error closing gRPC channel: {e}")
+        self.stubs.clear()

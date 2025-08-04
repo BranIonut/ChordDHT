@@ -4,6 +4,30 @@ from typing import ClassVar as _ClassVar, Optional as _Optional
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class PrintNodeInfoRequest(_message.Message):
+    __slots__ = ("target_id",)
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    target_id: str
+    def __init__(self, target_id: _Optional[str] = ...) -> None: ...
+
+class PrintNodeInfoResponse(_message.Message):
+    __slots__ = ("information",)
+    INFORMATION_FIELD_NUMBER: _ClassVar[int]
+    information: str
+    def __init__(self, information: _Optional[str] = ...) -> None: ...
+
+class PrintNodeStatsRequest(_message.Message):
+    __slots__ = ("target_id",)
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    target_id: str
+    def __init__(self, target_id: _Optional[str] = ...) -> None: ...
+
+class PrintNodeStatsResponse(_message.Message):
+    __slots__ = ("information",)
+    INFORMATION_FIELD_NUMBER: _ClassVar[int]
+    information: str
+    def __init__(self, information: _Optional[str] = ...) -> None: ...
+
 class FindSuccessorRequest(_message.Message):
     __slots__ = ("target_id", "key")
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]

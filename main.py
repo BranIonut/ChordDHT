@@ -1,132 +1,158 @@
+import os
 import sys
 import threading
 import time
+import logging
+import signal
+from time import sleep
 
-from presentation.docker_network import DockerNetwork
 from presentation.chord_server import serve
 from business.node import Node
 from presentation.kubernetes_network import KubernetesNetwork
 
-ADDRESS_MAP = {
-    i: f"localhost:{50050 + i}" for i in range(33)
-}
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
-def node_already_exists(nodes: list[Node], x: int) -> bool:
-    for i in range(len(nodes)):
-        if nodes[i].node_id == x:
-            return True
-    return False
+def extract_node_id_from_pod_name(pod_name: str) -> int:
+    try:
+        if pod_name.startswith("chord-"):
+            return int(pod_name.split("-")[-1])
+        else:
+            raise ValueError(f"Invalid pod name format: {pod_name}")
+    except (ValueError, IndexError) as e:
+        logger.error(f"Could not extract node ID from pod name '{pod_name}': {e}")
+        raise
 
 
 def launch_node(node_id: int, m: int) -> Node:
-    client = KubernetesNetwork()
-    node = Node(node_id, m, client)
-    client.set_local_node(node)
+    logger.info(f"Launching node {node_id} with m={m}")
 
-    t = threading.Thread(target=serve, args=(node, 50050), daemon=True)
-    t.start()
-    time.sleep(1)
+    network = KubernetesNetwork(
+        namespace=os.getenv("POD_NAMESPACE", "chord-dht"),
+        headless_service="chord-headless",
+        app_label="chord-node"
+    )
+    node = Node(node_id, m, network)
+    network.set_local_node(node)
 
-    bootstrap_id = client.discover_bootstrap()
+    server_thread = threading.Thread(target=serve, args=(node, 50050), daemon=True)
+    server_thread.start()
+    logger.info(f"gRPC server started for node {node_id}")
+
+    delay = node_id * 10
+    logger.info(f"Delaying {delay} seconds before bootstrap discovery...")
+    time.sleep(delay)
+
+    logger.info(f"Node {node_id} discovering bootstrap nodes...")
+    bootstrap_id = network.discover_bootstrap()
+    logger.info(f"Node {bootstrap_id} bootstrap node!!!!!!!!")
+
+
     if bootstrap_id:
-        print(f"[INFO] Node {node_id} joined with bootstrap {bootstrap_id}.")
+        logger.info(f"Node {node_id} joined with bootstrap {bootstrap_id}")
     else:
-        print(f"[INFO] Node {node_id} joined without bootstrap.")
+        logger.info(f"Node {node_id} joined without bootstrap")
 
     node.join(bootstrap_id)
+    logger.info(f"Node {node_id} joined the Chord ring")
+
     node.start_background_tasks()
+    logger.info(f"Node {node_id} background tasks started")
+
     return node
 
 
+def signal_handler(signum, node, network):
+    logger.info(f"Received signal {signum}. Shutting down gracefully...")
+
+    try:
+        node.leave()
+        logger.info("Node left the Chord ring")
+
+        network.cleanup()
+        logger.info("Network connections cleaned up")
+
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
+
+    sys.exit(0)
+
+
 def main():
-    m = 6
-    nodes = {}
+    m = 6  # Chord ring size parameter (2^m nodes max)
+
     node_id = 0
 
-    if len(sys.argv) == 2:
-        node_id = int(sys.argv[1])
-        nodes[node_id] = launch_node(node_id, m)
-    else:
-        print(f'[ERROR] in running app. At least 1 argument is needed...')
-        exit(1)
+    pod_name = os.getenv("POD_NAME")
+    if pod_name:
+        try:
+            node_id = extract_node_id_from_pod_name(pod_name)
+            logger.info(f"Extracted node ID {node_id} from pod name {pod_name}")
+        except ValueError:
+            pass
 
-    while True:
-        cmd = input(f'\nType your command: [help] for more information\n[Node {node_id}]: ')
+    if node_id is None and len(sys.argv) >= 2:
+        try:
+            node_id = int(sys.argv[1])
+            logger.info(f"Using node ID {node_id} from command line")
+        except ValueError:
+            logger.error(f"Invalid node ID provided: {sys.argv[1]}")
+            sys.exit(1)
 
-        if cmd.lower() == 'help':
-            print('Help menu:')
-            print('\t-> fix - fixes and stabilizes finger table, successor and predecessor of current node')
-            print('\t-> print - prints successor, predecessor and finger table of current node')
-            print('\t-> stats - shows numbers of fixes, stabilization, searches of current node')
-            print('\t-> successor [key] - finds and prints successor of given key')
-            print('\t-> predecessor [key] - finds and prints predecessor of given key')
-            print('\t-> info [info_key] - searches and shows information about given key')
-            print('\t-> create [info_key] [info_value] - creates information about given key, if not already exists')
-            print('\t-> remove [info_key] [info_value] - removes information about given key, if exists')
-            print('\t-> leave - leaves current node')
+    if node_id is None:
+        logger.error("No valid node ID found. Set POD_NAME environment variable or provide as argument.")
+        sys.exit(1)
 
-        elif cmd.lower() == 'exit':
-            exit(0)
+    if not (0 <= node_id < 2 ** m):
+        logger.error(f"Node ID {node_id} is out of range [0, {2 ** m - 1}]")
+        sys.exit(1)
 
-        elif cmd.lower() == 'fix':
-            nodes[node_id].fix_fingers()
-            nodes[node_id].stabilize()
+    try:
+        node = launch_node(node_id, m)
+        network = node.network
 
-        elif cmd.lower() == 'print':
-            nodes[node_id].print_predecessor_successor()
-            nodes[node_id].print_finger_table()
+        signal.signal(signal.SIGTERM, lambda s, f: signal_handler(s, f, node, network))
+        signal.signal(signal.SIGINT, lambda s, f: signal_handler(s, f, node, network))
 
-        elif cmd.lower().split(' ')[0] == 'create':
-            if len(cmd.lower().split(' ', 2)) != 3:
-                print("Invalid command. Correct format: create [info_key] [info_value]")
-                continue
-            x = int(cmd.split(' ')[1])
-            y = cmd.split(' ', 3)[2]
-            print(f"{x}, {y}")
-            nodes[node_id].create_info(int(cmd.split(' ')[1]), cmd.split(' ', 3)[2])
+        logger.info(f"Node {node_id} is running. Press Ctrl+C to stop.")
 
-        elif cmd.lower().split(' ')[0] == 'info':
-            if len(cmd.lower().split(' ')) != 2:
-                print("Invalid command. Correct format: info [info_key]")
-                continue
-            info = nodes[node_id].get_information(int(cmd.split(' ')[1]))
-            if info is not None:
-                print(f"Info({cmd.split(' ')[1]}): {info}")
-            else:
-                print(f"Info was not found...")
+        status_interval = 10  # seconds
+        last_status_time = 0
 
-        elif cmd.lower().split(' ')[0] == 'remove':
-            if len(cmd.lower().split(' ')) != 2:
-                print("Invalid command. Correct format: remove [info_key]")
-                continue
-            info = nodes[node_id].remove_info(int(cmd.split(' ')[1]))
-            if info:
-                print(f"Info removed successfully...")
-            else:
-                print(f"Info was not removed...")
+        while True:
+            current_time = time.time()
 
-        elif cmd.lower() == 'stats':
-            nodes[node_id].print_stats()
+            if current_time - last_status_time >= status_interval:
+                try:
+                    logger.info("=== Node Status ===")
 
-        elif cmd.lower().split(' ')[0] == 'successor':
-            if len(cmd.lower().split(' ')) != 2:
-                print("Invalid command. Correct format: successor [key]")
-                continue
-            print(f'{nodes[node_id].find_successor(int(cmd.lower().split(" ")[1]))}')
+                    successor_predecessor = node.print_predecessor_successor()
+                    logger.info(successor_predecessor)
 
-        elif cmd.lower().split(' ')[0] == 'predecessor':
-            if len(cmd.lower().split(' ')) != 2:
-                print("Invalid command. Correct format: predecessor [key]")
-                continue
-            print(f'{nodes[node_id].find_predecessor(int(cmd.lower().split(" ")[1]))}')
+                    finger_table = node.print_finger_table()
+                    logger.info(finger_table)
 
-        elif cmd.lower().split(' ')[0] == 'leave':
-            if len(cmd.lower().split(' ')) != 1:
-                print("Invalid command. Correct format: leave")
-                continue
-            nodes[node_id].leave()
-            exit(0)
+                    node_stats = node.print_stats()
+                    logger.info(node_stats)
+
+                    logger.info("==================")
+                    last_status_time = current_time
+                except Exception as e:
+                    logger.error(f"Error printing status: {e}")
+
+            sleep(5)
+
+    except KeyboardInterrupt:
+        logger.info("Received keyboard interrupt")
+        signal_handler(signal.SIGINT, None, node, network)
+    except Exception as e:
+        logger.error(f"Unexpected error in main loop: {e}")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

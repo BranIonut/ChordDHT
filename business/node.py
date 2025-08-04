@@ -30,9 +30,9 @@ class Node:
         }
 
     def join(self, bootstrap_node):
-        if bootstrap_node:
+        if bootstrap_node not in ("", None, "None"):
             self.init_finger_table(bootstrap_node)
-            if self.successor is not None:
+            if self.successor not in ("", None, "None"):
                 self.update_others()
         else:
             for i in range(self.m):
@@ -65,9 +65,9 @@ class Node:
             self.network.update_finger_table(p, self.node_id, i)
 
     def update_finger_table(self, s: int, i: int):
-        if self.finger_table[i] is None or self.in_range(s, self.node_id, self.finger_table[i]):
+        if self.finger_table[i] in ("", None, "None") or self.in_range(s, self.node_id, self.finger_table[i]):
             self.finger_table[i] = s
-            if self.predecessor is not None and self.predecessor != self.node_id:
+            if self.predecessor not in ("", None, "None") and self.predecessor != self.node_id:
                 self.network.update_finger_table(self.predecessor, s, i)
 
     @staticmethod
@@ -131,7 +131,7 @@ class Node:
     def closest_preceding_node(self, key):
         for i in range(self.m - 1, -1, -1):
             node_id = self.finger_table[i]
-            if node_id is not None and self.in_range(node_id, self.node_id, key):
+            if node_id not in ("", None, "None") and self.in_range(node_id, self.node_id, key):
                 return node_id
         return self.node_id
 
@@ -156,24 +156,30 @@ class Node:
                     continue
         return self.node_id
 
-    def print_predecessor_successor(self):
-        print(f'Node {self.node_id} successor: {self.successor}, predecessor: {self.predecessor}')
+    def print_predecessor_successor(self) -> str:
+        return f'Node {self.node_id} successor: {self.successor}, predecessor: {self.predecessor}\n'
 
-    def print_finger_table(self):
-        print(f'Node {self.node_id} finger table:')
+    def print_finger_table(self) -> str:
+        output: str = ''
+        output = output + f'Node {self.node_id} finger table:\n'
         if self.finger_table:
             for i in range(self.m):
                 node = self.finger_table[i]
-                print(f'\tsucc({self.start(i)}): {node if node else "None"}')
+                output = output + f'\tsucc({self.start(i)}): {node if node else "None"}\n'
         else:
-            print('No finger table elements to show')
+            output += 'No finger table elements to show\n'
 
-    def print_stats(self):
-        print(f'Node {self.node_id} stats:')
-        print(f'\tLookups: {self.stats["lookups"]}')
-        print(f'\tStabilization: {self.stats["stabilization"]}')
-        print(f'\tFinger fixes: {self.stats["finger_fixes"]}')
-        print(f'\tJoining time: {self.stats["join_time"]}\n')
+        return output
+
+    def print_stats(self) -> str:
+        output: str = ''
+        output += f'Node {self.node_id} stats:\n'
+        output += f'\tLookups: {self.stats["lookups"]}\n'
+        output += f'\tStabilization: {self.stats["stabilization"]}\n'
+        output += f'\tFinger fixes: {self.stats["finger_fixes"]}\n'
+        output += f'\tJoining time: {self.stats["join_time"]}\n'
+
+        return output
 
     def leave(self):
         if self.successor and self.successor != self.node_id:
@@ -230,20 +236,24 @@ class Node:
             self.successor = self.node_id
 
     def notify(self, node: int):
+        logging.info(f"[Node {self.node_id}] Received notify({node}) with current predecessor = {self.predecessor}")
         if self.predecessor is None or self.in_range(node, self.predecessor, self.node_id):
+            logging.info(f"[Node {self.node_id}] Updating predecessor from {self.predecessor} to {node}")
             self.predecessor = node
+        else:
+            logging.info(f"[Node {self.node_id}] Did NOT update predecessor")
 
     def node_has_info(self, info: int):
-        #print(f"[Node {self.node_id}]: searching information for key {info}.")
+        # print(f"[Node {self.node_id}]: searching information for key {info}.")
         if self.information.__contains__(info):
-            #print(f"Info found: {self.information[info]}")
+            # print(f"Info found: {self.information[info]}")
             return self.information[info]
-        #print(f"Info not found...")
+        # print(f"Info not found...")
         return None
 
     def get_information(self, info_key: int):
         responsible_node = self.find_successor(info_key)
-        #print(f"[get_information] {info_key} predecessor is {responsible_node}")
+        # print(f"[get_information] {info_key} predecessor is {responsible_node}")
         if responsible_node == self.node_id:
             return self.node_has_info(info_key)
 
@@ -285,6 +295,7 @@ class Node:
     def start_background_tasks(self):
         def loop():
             while True:
+                logging.info(f'[start_background_tasks][{self.node_id}] stabilization and fixing fingers')
                 self.stabilize()
                 self.fix_fingers()
                 time.sleep(5)

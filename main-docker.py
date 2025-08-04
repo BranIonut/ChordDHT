@@ -1,42 +1,22 @@
 import sys
 import threading
 import time
-from asyncio import timeout
-from socket import socket
 
-import grpc
-
-from presentation.chord_pb2 import FindSuccessorRequest
-from presentation.chord_pb2_grpc import ChordStub
 from presentation.docker_network import DockerNetwork
 from presentation.chord_server import serve
 from business.node import Node
 
-SERVICE_TEMPLATE="chord-node-{}.chord-headless.chord-dht-namespace.svc.cluster.local:50050"
+ADDRESS_MAP = {
+    i: f"localhost:{50050 + i}" for i in range(33)
+}
 
-def is_node_alive(index: int, node_id: int) -> bool:
-    if index == node_id:
-        return False
 
-    address = SERVICE_TEMPLATE.format(index)
-    try:
-        socket.gethostbyname(address.split(':')[0])
+def node_already_exists(nodes: list[Node], x: int) -> bool:
+    for i in range(len(nodes)):
+        if nodes[i].node_id == x:
+            return True
+    return False
 
-        channel = grpc.insecure_channel(address)
-        stub = ChordStub(channel)
-
-        response = stub.FindSuccessor(FindSuccessorRequest(target_id=str(index), key="0"), timeout=2)
-        return True
-    except Exception as e:
-        return False
-
-def discover_bootstrap_node(node_id: int, max_nodes: int = 10) -> int | None:
-    for id in range(max_nodes):
-        if is_node_alive(id, node_id):
-            print(f"[DISCOVERY] Found bootstrap node: {id}")
-            return id
-    print("[DISCOVERY] No bootstrap node found.")
-    return None
 
 def launch_node(node_id: int, m: int) -> Node:
     client = DockerNetwork()
@@ -47,7 +27,99 @@ def launch_node(node_id: int, m: int) -> Node:
     t.start()
     time.sleep(1)
 
-    bootstrap_id = discover_bootstrap_node(node_id, max_nodes=10)
+    bootstrap_id = client.discover_bootstrap()
+    if bootstrap_id:
+        print(f"[INFO] Node {node_id} joined with bootstrap {bootstrap_id}.")
+    else:
+        print(f"[INFO] Node {node_id} joined without bootstrap.")
+
     node.join(bootstrap_id)
     node.start_background_tasks()
     return node
+
+
+def main():
+    m = 6
+    nodes = {}
+    node_id = 0
+
+    if len(sys.argv) == 2:
+        node_id = int(sys.argv[1])
+        nodes[node_id] = launch_node(node_id, m)
+    else:
+        print(f'[ERROR] in running app. At least 1 argument is needed...')
+        exit(1)
+
+    while True:
+        cmd = input(f'\nType your command: [help] for more information\n[Node {node_id}]: ')
+
+        if cmd.lower() == 'help':
+            print('Help menu:')
+            print('\t-> fix - fixes and stabilizes finger table, successor and predecessor of current node')
+            print('\t-> print - prints successor, predecessor and finger table of current node')
+            print('\t-> stats - shows numbers of fixes, stabilization, searches of current node')
+            print('\t-> successor [key] - finds and prints successor of given key')
+            print('\t-> predecessor [key] - finds and prints predecessor of given key')
+            print('\t-> info [info_key] - searches and shows information about given key')
+            print('\t-> create [info_key] [info_value] - creates information about given key, if not already exists')
+            print('\t-> remove [info_key] [info_value] - removes information about given key, if exists')
+            print('\t-> leave - leaves current node')
+
+        elif cmd.lower() == 'exit':
+            exit(0)
+
+        elif cmd.lower() == 'fix':
+            nodes[node_id].fix_fingers()
+            nodes[node_id].stabilize()
+
+        elif cmd.lower() == 'print':
+            print(nodes[node_id].print_predecessor_successor(), '\n',
+                  nodes[node_id].print_finger_table())
+
+        elif cmd.lower().split(' ')[0] == 'create':
+            if len(cmd.lower().split(' ', 2)) != 3:
+                print("Invalid command. Correct format: create [info_key] [info_value]")
+                continue
+            x = int(cmd.split(' ')[1])
+            y = cmd.split(' ', 3)[2]
+            print(f"{x}, {y}")
+            nodes[node_id].create_info(int(cmd.split(' ')[1]), cmd.split(' ', 3)[2])
+
+        elif cmd.lower().split(' ')[0] == 'info':
+            if len(cmd.lower().split(' ')) != 2:
+                print("Invalid command. Correct format: info [info_key]")
+                continue
+            info = nodes[node_id].get_information(int(cmd.split(' ')[1]))
+            if info is not None:
+                print(f"Info({cmd.split(' ')[1]}): {info}")
+            else:
+                print(f"Info was not found...")
+
+        elif cmd.lower().split(' ')[0] == 'remove':
+            if len(cmd.lower().split(' ')) != 2:
+                print("Invalid command. Correct format: remove [info_key]")
+                continue
+            info = nodes[node_id].remove_info(int(cmd.split(' ')[1]))
+            if info:
+                print(f"Info removed successfully...")
+            else:
+                print(f"Info was not removed...")
+
+        elif cmd.lower() == 'stats':
+            nodes[node_id].print_stats()
+
+        elif cmd.lower().split(' ')[0] == 'successor':
+            if len(cmd.lower().split(' ')) != 2:
+                print("Invalid command. Correct format: successor [key]")
+                continue
+            print(f'{nodes[node_id].find_successor(int(cmd.lower().split(" ")[1]))}')
+
+        elif cmd.lower().split(' ')[0] == 'predecessor':
+            if len(cmd.lower().split(' ')) != 2:
+                print("Invalid command. Correct format: predecessor [key]")
+                continue
+            print(f'{nodes[node_id].find_predecessor(int(cmd.lower().split(" ")[1]))}')
+
+
+if __name__ == "__main__":
+    main()

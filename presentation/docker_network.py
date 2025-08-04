@@ -112,6 +112,7 @@ class DockerNetwork(NodeNetworkInterface):
         try:
             stub = self._get_stub(target_node_id)
             req = chord_pb2.GetInfoRequest(target_id=str(target_node_id), key=str(info_key))
+
             res = stub.GetInformation(req, timeout=2)
             return res.information
         except grpc.RpcError:

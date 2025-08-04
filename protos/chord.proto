@@ -15,6 +15,24 @@ service Chord {
   rpc NodeHasInformation(NodeHasInformationRequest) returns (NodeHasInformationResponse);
   rpc AddInformation(AddInfoRequest) returns (AddInfoResponse);
   rpc RemoveInformation(RemoveInfoRequest) returns (RemoveInfoResponse);
+  rpc PrintNodeInformation(PrintNodeInfoRequest) returns (PrintNodeInfoResponse);
+  rpc PrintNodeStats(PrintNodeStatsRequest) returns (PrintNodeStatsResponse);
+}
+
+message PrintNodeInfoRequest {
+  string target_id = 1;
+}
+
+message PrintNodeInfoResponse {
+  string information = 1;
+}
+
+message PrintNodeStatsRequest {
+  string target_id = 1;
+}
+
+message PrintNodeStatsResponse {
+  string information = 1;
 }
 
 message FindSuccessorRequest {
