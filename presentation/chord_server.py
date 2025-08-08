@@ -166,14 +166,39 @@ class ChordServer(ChordServicer):
         self.node.remove_info(int(request.info_key))
         return chord_pb2.RemoveInfoResponse()
 
-    def PrintNodeInformation(self, request, context):
-        successor_and_predecessor = self.node.print_predecessor_successor()
-        finger_table = self.node.print_finger_table()
-        return chord_pb2.PrintNodeInfoResponse(information=successor_and_predecessor + '\n' + finger_table)
+    def GetNodeInformation(self, request, context):
+        node_info = self.node.get_node_info()
 
-    def PrintNodeStats(self, request, context):
-        node_stats = self.node.print_stats()
-        return chord_pb2.PrintNodeStatsResponse(information=node_stats)
+        finger_table = [
+            chord_pb2.FingerEntry(index=str(k), finger_val=str(v))
+            for k, v in node_info["finger_table"].items()
+        ]
+
+        return chord_pb2.GetNodeInfoResponse(node_id=str(self.node.node_id),
+                                             successor=str(node_info["successor"]),
+                                             predecessor=str(node_info["predecessor"]),
+                                             finger_table=finger_table)
+
+    def GetNodeStats(self, request, context):
+        node_stats = self.node.get_stats()
+        return chord_pb2.GetNodeStatsResponse(fixes=str(node_stats['fixes']),
+                                              stabilization=str(node_stats['stabilization']),
+                                              lookups=str(node_stats['lookups']),
+                                              join_time=str(node_stats['join_time']))
+
+    def GetLogs(self, request, context):
+        logs = self.node.get_logs()
+
+        return chord_pb2.LogsResponse(log_line=logs)
+
+    def GetAllNodeInfo(self, request, context):
+        info = self.node.get_all_node_info()
+
+        info_lines = [
+            chord_pb2.InfoLine(info_key=str(i), info_val=str(v))
+            for i, v in enumerate(info)
+        ]
+        return chord_pb2.GetAllInfoResponse(info_line=info_lines)
 
 
 def serve(node, port):

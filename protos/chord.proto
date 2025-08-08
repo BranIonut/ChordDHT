@@ -15,24 +15,44 @@ service Chord {
   rpc NodeHasInformation(NodeHasInformationRequest) returns (NodeHasInformationResponse);
   rpc AddInformation(AddInfoRequest) returns (AddInfoResponse);
   rpc RemoveInformation(RemoveInfoRequest) returns (RemoveInfoResponse);
-  rpc PrintNodeInformation(PrintNodeInfoRequest) returns (PrintNodeInfoResponse);
-  rpc PrintNodeStats(PrintNodeStatsRequest) returns (PrintNodeStatsResponse);
+  rpc GetNodeInformation(GetNodeInfoRequest) returns (GetNodeInfoResponse);
+  rpc GetAllNodeInfo(GetAllInfoRequest) returns (GetAllInfoResponse);
+  rpc GetNodeStats(GetNodeStatsRequest) returns (GetNodeStatsResponse);
+  rpc GetLogs(LogsRequest) returns (LogsResponse);
 }
 
-message PrintNodeInfoRequest {
+message LogsRequest {
+}
+
+message LogsResponse {
+  repeated string log_line = 1;
+}
+
+message GetNodeInfoRequest {
   string target_id = 1;
 }
 
-message PrintNodeInfoResponse {
-  string information = 1;
+message GetNodeInfoResponse {
+  string node_id = 1;
+  string successor = 2;
+  string predecessor = 3;
+  repeated FingerEntry finger_table = 4;
 }
 
-message PrintNodeStatsRequest {
+message FingerEntry {
+  string index = 1;
+  string finger_val = 2;
+}
+
+message GetNodeStatsRequest {
   string target_id = 1;
 }
 
-message PrintNodeStatsResponse {
-  string information = 1;
+message GetNodeStatsResponse {
+  string fixes = 1;
+  string stabilization = 2;
+  string lookups = 3;
+  string join_time = 4;
 }
 
 message FindSuccessorRequest {
@@ -104,6 +124,18 @@ message GetInfoRequest {
 
 message GetInfoResponse {
   string information = 1;
+}
+
+message GetAllInfoRequest {
+}
+
+message GetAllInfoResponse {
+  repeated InfoLine info_line = 1;
+}
+
+message InfoLine {
+  string info_key = 1;
+  string info_val = 2;
 }
 
 message AddInfoRequest {

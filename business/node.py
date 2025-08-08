@@ -17,7 +17,7 @@ class Node:
 
         self.successor: int | None = None
         self.predecessor: int | None = None
-        self.finger_table: list[int | None] = [None] * self.m
+        self.finger_table = [self.node_id for _ in range(self.m)]
 
         self.information: dict[int, str] = {}
         self.redundant_information: dict[int, str] = {}
@@ -73,7 +73,7 @@ class Node:
     @staticmethod
     def in_range(key, start, end, include_start=False, include_end=False):
 
-        # print(f' start: {start}, end: {end}, key: {key}')
+        #logging.info(f' start: {start}, end: {end}, key: {key}')
 
         start = int(start)
         end = int(end)
@@ -136,6 +136,7 @@ class Node:
         return self.node_id
 
     def handle_dead_node(self, dead_node: int):
+        #logging.info(f'Ajung aici in handle_dead_node cu dead_node = {dead_node}')
         if self.successor == dead_node:
             self.successor = self.find_alive_successor()
 
@@ -159,13 +160,27 @@ class Node:
     def print_predecessor_successor(self) -> str:
         return f'Node {self.node_id} successor: {self.successor}, predecessor: {self.predecessor}\n'
 
+    def get_node_info(self):
+
+        finger_table = {}
+
+        for i in range(self.m):
+            node = self.finger_table[i]
+            finger_table[self.start(i)] = node
+
+        return {
+            'successor': self.successor,
+            'predecessor': self.predecessor,
+            'finger_table': finger_table,
+        }
+
     def print_finger_table(self) -> str:
         output: str = ''
         output = output + f'Node {self.node_id} finger table:\n'
         if self.finger_table:
             for i in range(self.m):
                 node = self.finger_table[i]
-                output = output + f'\tsucc({self.start(i)}): {node if node else "None"}\n'
+                output = output + f'\tsucc({self.start(i)}): {node}\n'
         else:
             output += 'No finger table elements to show\n'
 
@@ -180,6 +195,16 @@ class Node:
         output += f'\tJoining time: {self.stats["join_time"]}\n'
 
         return output
+
+    def get_logs(self):
+        logs = []
+        with open('/app/logs/app.log') as logs_file:
+            for line in logs_file.readlines():
+                logs.append(line)
+        return logs
+
+    def get_stats(self) -> dict[str, int | None]:
+        return self.stats
 
     def leave(self):
         if self.successor and self.successor != self.node_id:
@@ -260,6 +285,9 @@ class Node:
         information = self.network.get_information(responsible_node, info_key)
 
         return information if information != 'None' else None
+
+    def get_all_node_info(self) -> dict[int, str]:
+        return self.information
 
     def create_info(self, info_key: int, info: str) -> bool:
         info_already_exists = self.get_information(info_key)

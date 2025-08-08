@@ -1,5 +1,4 @@
 import logging
-#from distutils.command.config import config
 
 import grpc
 from kubernetes import client, config
@@ -33,7 +32,7 @@ class KubernetesNetwork(NodeNetworkInterface):
                 raise
         self.k8s_client = client.CoreV1Api()
 
-    def _resolve_address(self, node_id: int, short: bool = True) -> str:
+    def _resolve_address(self, node_id: int) -> str:
         return f"chord-{node_id}.{self.headless_service}.{self.namespace}.svc.cluster.local:{self.port}"
 
     def _get_stub(self, node_id: int) -> ChordStub:
@@ -119,7 +118,6 @@ class KubernetesNetwork(NodeNetworkInterface):
             return int(res.successor_id)
         except grpc.RpcError:
             self.local_node.handle_dead_node(target_id)
-            return None
 
     def get_predecessor(self, target_id: int) -> int | None:
 
@@ -132,7 +130,6 @@ class KubernetesNetwork(NodeNetworkInterface):
             return int(res.predecessor_id)
         except grpc.RpcError:
             self.local_node.handle_dead_node(target_id)
-            return None
 
     def set_predecessor(self, target_id: int, new_predecessor_id: int):
         try:
@@ -141,7 +138,6 @@ class KubernetesNetwork(NodeNetworkInterface):
             stub.SetPredecessor(req, timeout=2)
         except grpc.RpcError:
             self.local_node.handle_dead_node(target_id)
-            return None
 
     def set_successor(self, target_id: int, successor_id: int):
         try:
@@ -150,7 +146,6 @@ class KubernetesNetwork(NodeNetworkInterface):
             stub.SetSuccessor(req, timeout=2)
         except grpc.RpcError:
             self.local_node.handle_dead_node(target_id)
-            return None
 
     def notify(self, target_id: int, sender_id: int):
         try:
@@ -159,7 +154,6 @@ class KubernetesNetwork(NodeNetworkInterface):
             stub.Notify(req, timeout=2)
         except grpc.RpcError:
             self.local_node.handle_dead_node(target_id)
-            return None
 
     def update_finger_table(self, target_id: int, new_node_id: int, index: int):
 
@@ -178,6 +172,15 @@ class KubernetesNetwork(NodeNetworkInterface):
             req = chord_pb2.GetInfoRequest(target_id=str(target_node_id), key=str(info_key))
             res = stub.GetInformation(req, timeout=2)
             return res.information
+        except grpc.RpcError:
+            self.local_node.handle_dead_node(target_node_id)
+
+    def get_all_info(self, target_node_id: int):
+        try:
+            stub = self._get_stub(target_node_id)
+            req = chord_pb2.GetAllInfoRequest()
+            res = stub.GetAllNodeInfo(req, timeout=2)
+            return res.info_line
         except grpc.RpcError:
             self.local_node.handle_dead_node(target_node_id)
 
@@ -200,8 +203,8 @@ class KubernetesNetwork(NodeNetworkInterface):
     def print_node_info(self, target_node_id: int):
         try:
             stub = self._get_stub(target_node_id)
-            req = chord_pb2.PrintNodeInfoRequest(target_id=str(target_node_id))
-            stub.PrintNodeInformation(req, timeout=2)
+            req = chord_pb2.GetNodeInfoRequest(target_id=str(target_node_id))
+            stub.GetNodeInformation(req, timeout=2)
         except grpc.RpcError:
             if self.local_node:
                 self.local_node.handle_dead_node(target_node_id)
@@ -209,8 +212,8 @@ class KubernetesNetwork(NodeNetworkInterface):
     def print_stats(self, target_node_id: int):
         try:
             stub = self._get_stub(target_node_id)
-            req = chord_pb2.PrintNodeStatsRequest(target_id=str(target_node_id))
-            stub.PrintNodeStats(req, timeout=2)
+            req = chord_pb2.GetNodeStatsRequest(target_id=str(target_node_id))
+            stub.GetNodeStats(req, timeout=2)
         except grpc.RpcError:
             if self.local_node:
                 self.local_node.handle_dead_node(target_node_id)

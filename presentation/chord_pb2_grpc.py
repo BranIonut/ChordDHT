@@ -94,15 +94,25 @@ class ChordStub(object):
                 request_serializer=chord__pb2.RemoveInfoRequest.SerializeToString,
                 response_deserializer=chord__pb2.RemoveInfoResponse.FromString,
                 _registered_method=True)
-        self.PrintNodeInformation = channel.unary_unary(
-                '/chord.Chord/PrintNodeInformation',
-                request_serializer=chord__pb2.PrintNodeInfoRequest.SerializeToString,
-                response_deserializer=chord__pb2.PrintNodeInfoResponse.FromString,
+        self.GetNodeInformation = channel.unary_unary(
+                '/chord.Chord/GetNodeInformation',
+                request_serializer=chord__pb2.GetNodeInfoRequest.SerializeToString,
+                response_deserializer=chord__pb2.GetNodeInfoResponse.FromString,
                 _registered_method=True)
-        self.PrintNodeStats = channel.unary_unary(
-                '/chord.Chord/PrintNodeStats',
-                request_serializer=chord__pb2.PrintNodeStatsRequest.SerializeToString,
-                response_deserializer=chord__pb2.PrintNodeStatsResponse.FromString,
+        self.GetAllNodeInfo = channel.unary_unary(
+                '/chord.Chord/GetAllNodeInfo',
+                request_serializer=chord__pb2.GetAllInfoRequest.SerializeToString,
+                response_deserializer=chord__pb2.GetAllInfoResponse.FromString,
+                _registered_method=True)
+        self.GetNodeStats = channel.unary_unary(
+                '/chord.Chord/GetNodeStats',
+                request_serializer=chord__pb2.GetNodeStatsRequest.SerializeToString,
+                response_deserializer=chord__pb2.GetNodeStatsResponse.FromString,
+                _registered_method=True)
+        self.GetLogs = channel.unary_unary(
+                '/chord.Chord/GetLogs',
+                request_serializer=chord__pb2.LogsRequest.SerializeToString,
+                response_deserializer=chord__pb2.LogsResponse.FromString,
                 _registered_method=True)
 
 
@@ -181,13 +191,25 @@ class ChordServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def PrintNodeInformation(self, request, context):
+    def GetNodeInformation(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def PrintNodeStats(self, request, context):
+    def GetAllNodeInfo(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetNodeStats(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetLogs(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -256,15 +278,25 @@ def add_ChordServicer_to_server(servicer, server):
                     request_deserializer=chord__pb2.RemoveInfoRequest.FromString,
                     response_serializer=chord__pb2.RemoveInfoResponse.SerializeToString,
             ),
-            'PrintNodeInformation': grpc.unary_unary_rpc_method_handler(
-                    servicer.PrintNodeInformation,
-                    request_deserializer=chord__pb2.PrintNodeInfoRequest.FromString,
-                    response_serializer=chord__pb2.PrintNodeInfoResponse.SerializeToString,
+            'GetNodeInformation': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetNodeInformation,
+                    request_deserializer=chord__pb2.GetNodeInfoRequest.FromString,
+                    response_serializer=chord__pb2.GetNodeInfoResponse.SerializeToString,
             ),
-            'PrintNodeStats': grpc.unary_unary_rpc_method_handler(
-                    servicer.PrintNodeStats,
-                    request_deserializer=chord__pb2.PrintNodeStatsRequest.FromString,
-                    response_serializer=chord__pb2.PrintNodeStatsResponse.SerializeToString,
+            'GetAllNodeInfo': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetAllNodeInfo,
+                    request_deserializer=chord__pb2.GetAllInfoRequest.FromString,
+                    response_serializer=chord__pb2.GetAllInfoResponse.SerializeToString,
+            ),
+            'GetNodeStats': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetNodeStats,
+                    request_deserializer=chord__pb2.GetNodeStatsRequest.FromString,
+                    response_serializer=chord__pb2.GetNodeStatsResponse.SerializeToString,
+            ),
+            'GetLogs': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetLogs,
+                    request_deserializer=chord__pb2.LogsRequest.FromString,
+                    response_serializer=chord__pb2.LogsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -602,7 +634,7 @@ class Chord(object):
             _registered_method=True)
 
     @staticmethod
-    def PrintNodeInformation(request,
+    def GetNodeInformation(request,
             target,
             options=(),
             channel_credentials=None,
@@ -615,9 +647,9 @@ class Chord(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/chord.Chord/PrintNodeInformation',
-            chord__pb2.PrintNodeInfoRequest.SerializeToString,
-            chord__pb2.PrintNodeInfoResponse.FromString,
+            '/chord.Chord/GetNodeInformation',
+            chord__pb2.GetNodeInfoRequest.SerializeToString,
+            chord__pb2.GetNodeInfoResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -629,7 +661,7 @@ class Chord(object):
             _registered_method=True)
 
     @staticmethod
-    def PrintNodeStats(request,
+    def GetAllNodeInfo(request,
             target,
             options=(),
             channel_credentials=None,
@@ -642,9 +674,63 @@ class Chord(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/chord.Chord/PrintNodeStats',
-            chord__pb2.PrintNodeStatsRequest.SerializeToString,
-            chord__pb2.PrintNodeStatsResponse.FromString,
+            '/chord.Chord/GetAllNodeInfo',
+            chord__pb2.GetAllInfoRequest.SerializeToString,
+            chord__pb2.GetAllInfoResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetNodeStats(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chord.Chord/GetNodeStats',
+            chord__pb2.GetNodeStatsRequest.SerializeToString,
+            chord__pb2.GetNodeStatsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetLogs(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/chord.Chord/GetLogs',
+            chord__pb2.LogsRequest.SerializeToString,
+            chord__pb2.LogsResponse.FromString,
             options,
             channel_credentials,
             insecure,

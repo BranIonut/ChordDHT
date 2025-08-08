@@ -12,6 +12,8 @@ from presentation.kubernetes_network import KubernetesNetwork
 
 logging.basicConfig(
     level=logging.INFO,
+    filemode='a',
+    filename='/app/logs/app.log',
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -43,14 +45,8 @@ def launch_node(node_id: int, m: int) -> Node:
     server_thread.start()
     logger.info(f"gRPC server started for node {node_id}")
 
-    delay = node_id * 10
-    logger.info(f"Delaying {delay} seconds before bootstrap discovery...")
-    time.sleep(delay)
-
     logger.info(f"Node {node_id} discovering bootstrap nodes...")
     bootstrap_id = network.discover_bootstrap()
-    logger.info(f"Node {bootstrap_id} bootstrap node!!!!!!!!")
-
 
     if bootstrap_id:
         logger.info(f"Node {node_id} joined with bootstrap {bootstrap_id}")
@@ -83,7 +79,7 @@ def signal_handler(signum, node, network):
 
 
 def main():
-    m = 6  # Chord ring size parameter (2^m nodes max)
+    m = 6
 
     node_id = 0
 
@@ -120,31 +116,8 @@ def main():
 
         logger.info(f"Node {node_id} is running. Press Ctrl+C to stop.")
 
-        status_interval = 10  # seconds
-        last_status_time = 0
-
         while True:
-            current_time = time.time()
-
-            if current_time - last_status_time >= status_interval:
-                try:
-                    logger.info("=== Node Status ===")
-
-                    successor_predecessor = node.print_predecessor_successor()
-                    logger.info(successor_predecessor)
-
-                    finger_table = node.print_finger_table()
-                    logger.info(finger_table)
-
-                    node_stats = node.print_stats()
-                    logger.info(node_stats)
-
-                    logger.info("==================")
-                    last_status_time = current_time
-                except Exception as e:
-                    logger.error(f"Error printing status: {e}")
-
-            sleep(5)
+            continue
 
     except KeyboardInterrupt:
         logger.info("Received keyboard interrupt")
