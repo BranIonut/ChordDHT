@@ -22,7 +22,7 @@ spec:
     matchLabels:
       app: chord-node
   serviceName: "chord-headless"
-  replicas: 16
+  replicas: 8
   template:
     metadata:
       labels:
