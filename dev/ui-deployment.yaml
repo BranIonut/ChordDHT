@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: chord-service
+  namespace: chord-dht
+spec:
+  selector:
+    app: chord-ui
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: chord-ui
+  namespace: chord-dht
+spec:
+  selector:
+    matchLabels:
+      app: chord-ui
+  serviceName: "chord-service"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: chord-ui
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: chord-ui
+          image: alexandru2004/chord_dht_repo:3.1.0
+          ports:
+            - containerPort: 3000

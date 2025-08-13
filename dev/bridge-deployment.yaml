@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: chord-backend
+  namespace: chord-dht
+spec:
+  clusterIP: None
+  selector:
+    app: chord-backend
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: chord-backend
+  namespace: chord-dht
+spec:
+  serviceName: chord-backend
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chord-backend
+  template:
+    metadata:
+      labels:
+        app: chord-backend
+    spec:
+      serviceAccountName: chord-service-account
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: backend
+          image: alexandru2004/chord_dht_repo:2.1.0
+          ports:
+            - containerPort: 8000
